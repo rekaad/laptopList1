@@ -36,9 +36,9 @@ public class JFrameWindow extends JFrame {
     private JButton readXMLButton;
 
     private String[] headers = {
-            "Brand", "Screen", "Rozdzielczosc", "Finish", "Touchscreen", "Processor", "Processor Cores", "Speed",
-            "RAM", "Memory", "Hard Drive Type", "Graphics Card", "Graphics Memory", "Operating System",
-            "Optical Drive"
+            "Marka", "Ekran", "Rozdzielczosc", "Typ matrycy", "Czy ekran dotykowy", "Procesor", "Liczba rdzeni fizycznych", "Taktowanie",
+            "RAM", "Pojemnosc dysku", "Typ dysku", "Karta graficzna", "Pamięć karty graficznej", "System operacyjny",
+            "Napęd optyczny"
     };
     List<Object[]> computers = new ArrayList<>();
 
@@ -55,7 +55,7 @@ public class JFrameWindow extends JFrame {
         jPanel = new JPanel();
         jPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 60, 10));
 
-        readDataButton = new JButton("Read data");
+        readDataButton = new JButton("Wczytaj plik txt");
 
         readDataButton.addActionListener(e -> {
             howManyNull = 0;
@@ -65,20 +65,20 @@ public class JFrameWindow extends JFrame {
             ifReadDataButtonClicked = false;
         });
 
-        writeDataButton = new JButton("Write data");
+        writeDataButton = new JButton("Zapisz plik txt");
         writeDataButton.addActionListener(e -> {
             if (howManyNull == 0)
                 saveData();
             else {
                 JOptionPane.showMessageDialog(
                         null,
-                        "Please enter correct data!",
+                        "Wprowadz poprawne dane!",
                         "Alert",
                         JOptionPane.INFORMATION_MESSAGE);
             }
         });
 
-        readXMLButton = new JButton("Import data from XML");
+        readXMLButton = new JButton("Wczytaj dane z pliku XML");
         readXMLButton.addActionListener(e -> {
             howManyNull = 0;
             ifReadDataButtonClicked = true;
@@ -87,14 +87,14 @@ public class JFrameWindow extends JFrame {
             ifReadDataButtonClicked = false;
         });
 
-        writeXMLButton = new JButton("Export data to XML");
+        writeXMLButton = new JButton("Zapisz dane w pliku XML");
         writeXMLButton.addActionListener(e -> {
             if (howManyNull == 0)
                 saveDataToXML();
             else {
                 JOptionPane.showMessageDialog(
                         null,
-                        "Please enter correct data!",
+                        "Wprowadz poprawne dane!",
                         "Alert",
                         JOptionPane.INFORMATION_MESSAGE);
             }
@@ -108,7 +108,7 @@ public class JFrameWindow extends JFrame {
                     howManyNull++;
                     JOptionPane.showMessageDialog(
                             null,
-                            "This cannot be null!",
+                            "Pole nie moze byc puste!",
                             "Alert",
                             JOptionPane.INFORMATION_MESSAGE);
                 } else if (howManyNull != 0)
@@ -126,7 +126,7 @@ public class JFrameWindow extends JFrame {
         contentPane.add(new JScrollPane(jTable), BorderLayout.CENTER);
         contentPane.add(jPanel, BorderLayout.NORTH);
 
-        setSize(1000, 300);
+        setSize(1200, 500);
         setLocationRelativeTo(null);
         setVisible(true);
     }
@@ -157,7 +157,7 @@ public class JFrameWindow extends JFrame {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
                     null,
-                    "Cannot find any file!",
+                    "Nie mozna znalezc pliku!",
                     "Alert",
                     JOptionPane.INFORMATION_MESSAGE);
         }
@@ -329,7 +329,7 @@ public class JFrameWindow extends JFrame {
         } catch (Exception e) {
             JOptionPane.showMessageDialog(
                     null,
-                    "Cannot find any file!",
+                    "Nie mozna znalezc pliku!",
                     "Alert",
                     JOptionPane.INFORMATION_MESSAGE);
         }
