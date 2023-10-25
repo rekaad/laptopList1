@@ -5,6 +5,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,6 +18,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.awt.*;
 import java.io.*;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,6 +36,10 @@ public class JFrameWindow extends JFrame {
     private JButton writeDataButton;
     private JButton writeXMLButton;
     private JButton readXMLButton;
+    private JButton writeDatabaseButton;
+    private JButton readDatabaseButton;
+    private JLabel copiesLabel;
+    private JLabel newValuesLabel;
 
     private String[] headers = {
             "Marka", "Ekran", "Rozdzielczosc", "Typ matrycy", "Czy ekran dotykowy", "Procesor", "Liczba rdzeni fizycznych", "Taktowanie",
@@ -41,6 +47,10 @@ public class JFrameWindow extends JFrame {
             "Napęd optyczny"
     };
     List<Object[]> computers = new ArrayList<>();
+
+    private List<Object[]> previousComputers = new ArrayList<>();
+    private List<Integer> sameRows = new ArrayList<>();
+    private List<Integer> editedRows = new ArrayList<>();
 
     private int howManyNull = 0;
     private boolean ifReadDataButtonClicked = false;
@@ -58,11 +68,15 @@ public class JFrameWindow extends JFrame {
         readDataButton = new JButton("Wczytaj plik txt");
 
         readDataButton.addActionListener(e -> {
+            editedRows = new ArrayList<>();
+            setPreviousComputerList();
+
             howManyNull = 0;
             ifReadDataButtonClicked = true;
             defaultTableModel.setRowCount(0);
             readData(headers).forEach(computer -> defaultTableModel.addRow(computer));
             ifReadDataButtonClicked = false;
+            countCopies();
         });
 
         writeDataButton = new JButton("Zapisz plik txt");
@@ -80,11 +94,15 @@ public class JFrameWindow extends JFrame {
 
         readXMLButton = new JButton("Wczytaj dane z pliku XML");
         readXMLButton.addActionListener(e -> {
+            editedRows = new ArrayList<>();
+            setPreviousComputerList();
+
             howManyNull = 0;
             ifReadDataButtonClicked = true;
             defaultTableModel.setRowCount(0);
             readDataFromXML().forEach(computer -> defaultTableModel.addRow(computer));
             ifReadDataButtonClicked = false;
+            countCopies();
         });
 
         writeXMLButton = new JButton("Zapisz dane w pliku XML");
@@ -92,6 +110,47 @@ public class JFrameWindow extends JFrame {
             if (howManyNull == 0)
                 saveDataToXML();
             else {
+                JOptionPane.showMessageDialog(
+                        null,
+                        "Wprowadz poprawne dane!",
+                        "Alert",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+
+
+        readDatabaseButton = new JButton("Wczytaj dane z bazy");
+        readDatabaseButton.addActionListener(e -> {
+            editedRows = new ArrayList<>();
+            setPreviousComputerList();
+
+            howManyNull = 0;
+            ifReadDataButtonClicked = true;
+            defaultTableModel.setRowCount(0);
+            try {
+                DatabaseOperations.readData(computers).forEach(computer -> defaultTableModel.addRow(computer));
+            } catch (ClassNotFoundException | SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+            ifReadDataButtonClicked = false;
+
+            countCopies();
+        });
+
+        writeDatabaseButton = new JButton("Zapisz dane do bazy");
+        writeDatabaseButton.addActionListener(e -> {
+            if (howManyNull == 0) {
+                try {
+                    if (editedRows.size() == 0)
+                        DatabaseOperations.saveData(defaultTableModel, splitter);
+                    else {
+                        for (Integer id : editedRows)
+                            DatabaseOperations.updateData(defaultTableModel, splitter, id);
+                    }
+                } catch (ClassNotFoundException | SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+            } else {
                 JOptionPane.showMessageDialog(
                         null,
                         "Wprowadz poprawne dane!",
@@ -120,15 +179,43 @@ public class JFrameWindow extends JFrame {
         jPanel.add(writeDataButton);
         jPanel.add(readXMLButton);
         jPanel.add(writeXMLButton);
+        jPanel.add(readDatabaseButton);
+        jPanel.add(writeDatabaseButton);
+
+        newValuesLabel = new JLabel("Nowe wartosci = 0");
+        copiesLabel = new JLabel("Kopie = 0");
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+
+        infoPanel.add(newValuesLabel);
+        infoPanel.add(copiesLabel);
+
+        jPanel.add(infoPanel);
 
         Container contentPane = getContentPane();
         contentPane.setLayout(new BorderLayout());
         contentPane.add(new JScrollPane(jTable), BorderLayout.CENTER);
         contentPane.add(jPanel, BorderLayout.NORTH);
 
-        setSize(1200, 500);
+        setSize(1600, 500);
         setLocationRelativeTo(null);
         setVisible(true);
+
+
+        defaultTableModel.addTableModelListener(e -> {
+            if (e.getType() == TableModelEvent.UPDATE) {
+                int row = e.getFirstRow();
+                int column = e.getColumn();
+                Object newValue = defaultTableModel.getValueAt(row, column);
+                Object oldValue = computers.get(row)[column];
+
+                if (!newValue.equals(oldValue)) {
+                    editedRows.add(row);
+                    countCopies();
+                }
+            }
+        });
     }
 
     public List<Object[]> readData(String[] headers) {
@@ -334,6 +421,48 @@ public class JFrameWindow extends JFrame {
                     JOptionPane.INFORMATION_MESSAGE);
         }
         return computers;
+    }
+
+    public void countCopies() {
+        if (previousComputers.size() > 0) {
+            int copiesNumber = 0;
+            sameRows = new ArrayList<>();
+            for (int i = 0; i < defaultTableModel.getRowCount(); i++) {
+                Object[] row = new Object[defaultTableModel.getColumnCount()];
+
+                for (int j = 0; j < defaultTableModel.getColumnCount(); j++)
+                    row[j] = defaultTableModel.getValueAt(i, j);
+
+                int counter = 0;
+                for (Object[] computer : previousComputers) {
+                    if (Arrays.equals(computer, row) && counter == i) {
+                        copiesNumber++;
+                        sameRows.add(i);
+                        break;
+                    }
+                    counter++;
+                }
+            }
+            newValuesLabel.setText("Nowe wartosci = " + (defaultTableModel.getRowCount() - copiesNumber));
+            copiesLabel.setText("Kopie = " + copiesNumber);
+
+            jTable.setDefaultRenderer(Object.class, new CustomTableCells(sameRows, editedRows));
+        } else {
+            jTable.setDefaultRenderer(Object.class, new CustomTableCells(sameRows, editedRows));
+            newValuesLabel.setText("Nowe wartosci = " + defaultTableModel.getRowCount());
+            copiesLabel.setText("Kopie = " + 0);
+        }
+    }
+
+    public void setPreviousComputerList() {
+        previousComputers = new ArrayList<>();
+        for (int i = 0; i < defaultTableModel.getRowCount(); i++) {
+            Object[] row = new Object[defaultTableModel.getColumnCount()];
+            for (int j = 0; j < defaultTableModel.getColumnCount(); j++) {
+                row[j] = defaultTableModel.getValueAt(i, j);
+            }
+            previousComputers.add(row);
+        }
     }
 
     public static void main(String[] args) {
